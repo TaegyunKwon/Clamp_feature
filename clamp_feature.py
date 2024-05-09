@@ -129,13 +129,21 @@ def load_music(filename):
         music = unidecode(output).split('\n')
         music = abc_filter(music)
     elif filename.suffix == '.mid':
-        p = subprocess.Popen(f'python inference/EasyABC/midi2abc.py "{filename}"', stdout=subprocess.PIPE, shell=True)
+        try:
+            subprocess.check_output(f'mscore3 -o "{filename.with_suffix(".mxl")}" "{filename}"', shell=True)
+        except subprocess.CalledProcessError as e:
+            print(e.output)
+            raise e
+        p = subprocess.Popen(f'python inference/xml2abc.py -m 2 -c 6 -x "{filename.with_suffix(".mxl")}"', stdout=subprocess.PIPE, shell=True)
         result = p.communicate()
         output = result[0].decode('utf-8').replace('\r', '')
         music = unidecode(output).split('\n')
         music = abc_filter(music)
+        # save music as text
+        with open(f'{filename.with_suffix(".txt")}', 'w') as f:
+            f.write(music)
+        return music
 
-    return music
 
 
 def get_features(ids_list, modal):
@@ -175,7 +183,10 @@ if __name__ == "__main__":
     midi_files = list(target_folder.glob('*.mid'))
     for midi_file in midi_files:
         # load query
-        query = load_music(midi_file)
+        try:
+            query = load_music(midi_file)
+        except:
+            continue
         query = unidecode(query)
 
         # encode query
